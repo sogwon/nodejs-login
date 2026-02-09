@@ -1,0 +1,22 @@
+{
+  "name": "cloudbase-backend",
+  "version": "1.0.0",
+  "description": "Tencent CloudBase 백엔드 서버 - MySQL 테이블 목록 조회",
+  "main": "lib/cloudbase.js",
+  "scripts": {
+    "list-tables": "node scripts/list-mysql-tables.js",
+    "list-tables:mysql": "node scripts/list-mysql-tables-mysql2.js",
+    "start": "node server.js",
+    "server": "node server.js"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "keywords": ["cloudbase", "tencent", "mysql"],
+  "license": "MIT",
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.0.0",
+    "dotenv": "^16.0.0",
+    "mysql2": "^3.0.0"
+  }
+}
