@@ -1,119 +1,164 @@
-# CloudBase 백엔드 (Node.js)
+# Node.js Login API Server
 
-Tencent CloudBase에 연결해 MySQL 테이블 목록을 조회하는 백엔드 스크립트입니다.
+다중 로그인 수단(Email/Password, Phone OTP, OIDC)을 지원하는 인증 API 서버입니다.  
+User와 Identity를 분리해 계정 연결(linking)을 지원하며, refresh token rotation/reuse detection까지 포함합니다.
 
-## 요구 사항
+## 핵심 기능
 
-- Node.js 12+
-- CloudBase 환경 ID, Secret ID, Secret Key
+- 다중 로그인 채널
+  - Email/Password
+  - Phone OTP
+  - OIDC Provider (Generic, DB 설정 기반 확장)
+- 계정 모델
+  - `users`(내부 사용자) + `identities`(외부 로그인 식별자) 분리
+  - 1명의 User에 여러 Identity 연결 가능
+- 보안
+  - PKCE(S256), state/nonce
+  - Access/Refresh 토큰 분리
+  - Refresh rotation + reuse detection
+  - 민감 엔드포인트 rate limit
 
-## 설치
+## 기술 스택
+
+- Node.js + Express
+- MySQL (`mysql2`)
+- JWT (`jsonwebtoken`)
+- Password hashing (`bcrypt`)
+
+## 빠른 시작
+
+### 1) 설치
 
 ```bash
 npm install
 ```
 
-## 환경 변수
+### 2) 환경 변수 설정
 
-프로젝트 루트에 `.env` 파일을 만들고 아래 값을 채우세요. (`cp .env.example .env` 후 수정)
+`.env.example`를 복사해서 `.env`를 만듭니다.
 
-| 변수 | 설명 |
-|------|------|
-| `CLOUDBASE_ENV_ID` | CloudBase 환경 ID |
-| `CLOUDBASE_SECRET_ID` / `CLOUDBASE_SECRET_KEY` | Tencent Cloud API Secret (또는 `CLOUDBASE_SECRETID` / `CLOUDBASE_SECRETKEY`) |
+```bash
+cp .env.example .env
+```
 
-## HTTP 서버 (테이블 목록 API)
+필수 항목:
 
-MySQL에 직접 연결해 **테이블 목록을 JSON으로 반환**하는 HTTP 서버를 실행할 수 있습니다.
+- DB 연결: `CONNECTION_URI` 또는 `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`
+- JWT: `JWT_SECRET` (운영 환경 필수)
 
-1. `.env`에 MySQL 연결 정보를 설정 (방법 2와 동일: `CONNECTION_URI` 또는 `DB_HOST`, `DB_USER`, `DB_PASSWORD`)
-2. 서버 실행:
+권장 항목:
+
+- `JWT_ISSUER` (기본 `auth.example.com`)
+- `AUTH_BASE_URL` (Provider 목록의 `authUrl` 생성 기준)
+- `ACCESS_TOKEN_EXPIRES_IN` (기본 900)
+- `REFRESH_TOKEN_EXPIRES_IN` (기본 2592000)
+
+### 3) DB 스키마 적용
+
+```bash
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < sql/schema.sql
+```
+
+OIDC 예시 Provider를 넣으려면:
+
+```bash
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < sql/seed-providers.sql
+```
+
+### 4) 서버 실행
 
 ```bash
 npm start
-# 또는
-npm run server
 ```
 
-3. 브라우저 또는 curl로 요청:
-   - `GET http://localhost:3000/api/tables` → MySQL 테이블 목록 (JSON)
-   - `GET http://localhost:3000/health` → 헬스 체크
+- 기본 포트: `3000`
+- 헬스 체크: `GET /health`
 
-포트는 환경 변수 `PORT`로 변경 가능 (기본 3000).
+## 인증 아키텍처 요약
 
-## Auth API (로그인 서버)
+- Access Token (JWT): API 호출용, 짧은 만료
+- Refresh Token (Opaque): 세션 유지용, DB에는 해시만 저장
+- Refresh Rotation: refresh 호출 시 새 refresh 발급
+- Reuse Detection:
+  - 이미 회전된 이전 refresh 재사용 시
+  - 세션 revoke + `REFRESH_TOKEN_REUSED` 반환
 
-`npm start`로 실행되는 앱에 **로그인 API**가 포함되어 있습니다.
+## API 요약
 
-### DB 스키마 적용
+Base URL: `http://localhost:3000`
 
-Auth API를 사용하려면 MySQL에 스키마를 적용하세요.
+### Provider / OIDC
 
-```bash
-# MySQL 클라이언트로 적용 (DB_NAME은 사용 중인 DB로 변경)
-mysql -h DB_HOST -u DB_USER -p DB_NAME < sql/schema.sql
-# IdP 예시 등록 (선택)
-mysql -h DB_HOST -u DB_USER -p DB_NAME < sql/seed-providers.sql
+- `GET /v1/auth/providers`
+- `POST /v1/auth/oidc/:provider/start`
+- `POST /v1/auth/oidc/:provider/exchange`
+
+### Password
+
+- `POST /v1/auth/password/signup`
+- `POST /v1/auth/password/login`
+
+### OTP
+
+- `POST /v1/auth/otp/send`
+- `POST /v1/auth/otp/verify`
+
+### Session / Token
+
+- `POST /v1/auth/token/refresh`
+- `POST /v1/auth/logout`
+
+### Account Linking
+
+- `POST /v1/auth/link/oidc/:provider/start` (Bearer 필요)
+- `POST /v1/auth/link/oidc/:provider/exchange` (Bearer 필요)
+- `DELETE /v1/auth/identities/:identityId` (Bearer 필요)
+
+상세 요청/응답 예시는 `docs/API_GUIDE.md`를 참고하세요.
+
+## 공통 응답 포맷
+
+### 성공
+
+```json
+{
+  "success": true
+}
 ```
 
-`.env`에 `DB_NAME=auth` 또는 기존 DB 이름을 두고, 동일 DB에 테이블을 생성하면 됩니다.
+### 실패
 
-### Auth 환경 변수
-
-| 변수 | 설명 |
-|------|------|
-| `JWT_SECRET` | JWT 서명용 시크릿 (운영 시 필수, 32자 이상 권장) |
-| `JWT_ISSUER` | JWT iss 클레임 (기본 `auth.example.com`) |
-| `AUTH_BASE_URL` | Provider 목록의 `authUrl` 기준 URL (리다이렉트용) |
-| `ACCESS_TOKEN_EXPIRES_IN` | Access Token 만료(초, 기본 900) |
-| `REFRESH_TOKEN_EXPIRES_IN` | Refresh Token 만료(초, 기본 2592000) |
-
-### Auth API 엔드포인트 요약
-
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| GET | `/v1/auth/providers` | 로그인 가능한 Provider 목록 |
-| POST | `/v1/auth/oidc/:provider/start` | OIDC 로그인 시작 (PKCE, state, nonce) |
-| POST | `/v1/auth/oidc/:provider/exchange` | 인가 코드 교환 → 토큰 발급 |
-| POST | `/v1/auth/password/signup` | 이메일/비밀번호 가입 |
-| POST | `/v1/auth/password/login` | 이메일/비밀번호 로그인 |
-| POST | `/v1/auth/otp/send` | OTP 발송 (SMS/WhatsApp 등) |
-| POST | `/v1/auth/otp/verify` | OTP 검증 → 토큰 발급 |
-| POST | `/v1/auth/token/refresh` | Refresh Token으로 Access/Refresh 재발급 (Rotation) |
-| POST | `/v1/auth/logout` | Refresh Token 폐기 |
-| POST | `/v1/auth/link/oidc/:provider/start` | IdP 연결 시작 (Bearer 필요) |
-| POST | `/v1/auth/link/oidc/:provider/exchange` | IdP 연결 완료 (Bearer 필요) |
-| DELETE | `/v1/auth/identities/:identityId` | Identity 해제 (최소 1개 유지) |
-
-OIDC IdP는 `auth_providers` 테이블에 설정만 추가하면 Generic OIDC로 동작합니다 (discovery_url/issuer, client_id, client_secret, scopes 등).
-
-## MySQL 테이블 목록 출력 (CLI)
-
-### 방법 1: CloudBase Node SDK (데이터 모델)
-
-환경에 **云数据库(MySQL型)** 이 연결되어 있고, 데이터 모델 SDK에서 SQL 실행이 가능한 경우:
-
-```bash
-npm run list-tables
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "error message",
+    "details": {}
+  }
+}
 ```
 
-CloudBase에 연결한 뒤 `information_schema`를 이용해 현재 데이터베이스의 테이블 목록을 출력합니다.
+주요 에러 코드:
 
-### 방법 2: mysql2 직접 연결
+- `INVALID_REQUEST`
+- `INVALID_CREDENTIALS`
+- `UNAUTHORIZED`
+- `REFRESH_TOKEN_REUSED`
+- `CONFLICT`
+- `RATE_LIMITED`
 
-CloudBase MySQL **내부 네트워크 연결 주소**를 알고 있는 경우:
+## 프로젝트 구조
 
-1. `.env`에 다음 중 하나를 설정  
-   - `CONNECTION_URI=mysql://root:비밀번호@내부주소:3306/tcb`  
-   - 또는 `DB_HOST`, `DB_USER`, `DB_PASSWORD` (선택: `DB_PORT`, `DB_NAME`)
-2. 실행:
-
-```bash
-npm run list-tables:mysql
+```text
+app.js
+docs/API_GUIDE.md
+routes/auth/
+lib/auth/
+sql/schema.sql
+sql/seed-providers.sql
 ```
 
-## 참고
+## 개발 메모
 
-- [CloudBase Node SDK 소개](https://docs.cloudbase.net/en/api-reference/server/node-sdk/introduction)
-- [云数据库(MySQL型) 접근 - $runSQL / $runSQLRaw](https://docs.cloudbase.net/en/database/access/tdsql)
-- [Cloud Function에서 MySQL 호출](https://docs.cloudbase.net/en/cloud-function/resource-integration/mysql)
+- 운영 배포 전 반드시 `JWT_SECRET`, DB 계정, CORS 정책을 환경에 맞게 조정

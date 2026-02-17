@@ -1,13 +1,12 @@
 /**
- * Auth API + 기존 API 통합 Express 앱
+ * Auth API Express 앱
  * - /v1/auth/* : 로그인 API
- * - /health, /api/tables : 기존 엔드포인트
+ * - /health : 헬스 체크
  */
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const express = require("express");
 const authRoutes = require("./routes/auth");
-const db = require("./lib/db");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -29,24 +28,11 @@ app.get("/health", (req, res) => {
   res.json({ ok: true, message: "Auth API server" });
 });
 
-app.get("/api/tables", async (req, res) => {
-  try {
-    const [rows] = await db.getPool().execute("SHOW TABLES");
-    const key = rows.length > 0 ? Object.keys(rows[0])[0] : null;
-    const tables = key ? rows.map((r) => r[key]) : [];
-    res.json({ success: true, count: tables.length, tables });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 app.get("/", (req, res) => {
   res.json({
     message: "Auth API",
     endpoints: {
       "GET /health": "헬스 체크",
-      "GET /api/tables": "MySQL 테이블 목록",
       "GET /v1/auth/providers": "로그인 Provider 목록",
       "POST /v1/auth/oidc/:provider/start": "OIDC 로그인 시작",
       "POST /v1/auth/oidc/:provider/exchange": "OIDC 코드 교환",

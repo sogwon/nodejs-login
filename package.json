@@ -7,8 +7,7 @@
     "list-tables": "node scripts/list-mysql-tables.js",
     "list-tables:mysql": "node scripts/list-mysql-tables-mysql2.js",
     "start": "node app.js",
-    "server": "node app.js",
-    "legacy": "node server.js"
+    "server": "node app.js"
   },
   "engines": {
     "node": ">=12.0.0"
