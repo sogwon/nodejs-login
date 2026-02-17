@@ -57,7 +57,11 @@ async function otpSend(req, res) {
       details: { channel, purpose: purpose || "login" },
     });
 
-    return success(res, { expiresIn: OTP_TTL_SEC });
+    const payload = { expiresIn: OTP_TTL_SEC };
+    if (process.env.OTP_DEBUG === "1") {
+      payload.debugCode = code;
+    }
+    return success(res, payload);
   } catch (err) {
     console.error("otpSend", err);
     return errorWithCode(res, "INTERNAL_ERROR", err.message);

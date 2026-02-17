@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth API Example App</title>
+    <style>
+      :root {
+        --bg: #f3f5fa;
+        --surface: #ffffff;
+        --surface-2: #f9fafc;
+        --line: #e3e8f2;
+        --text: #111827;
+        --muted: #667085;
+        --primary: #3b5bdb;
+        --primary-2: #3148ad;
+        --radius: 12px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+      }
+      .topbar-inner {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand { font-weight: 700; font-size: 15px; color: #1d2b50; }
+      .topbar-actions { display: flex; gap: 8px; align-items: center; }
+      .env-chip {
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid #cad3e6;
+        background: #eef2fb;
+        color: #274080;
+        font-size: 12px;
+      }
+      .wrap { max-width: 1360px; margin: 18px auto; padding: 0 18px 30px; }
+      h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+      .subtitle { margin: 6px 0 16px; color: var(--muted); font-size: 14px; }
+      .layout { display: grid; grid-template-columns: minmax(640px, 1fr) minmax(380px, 460px); gap: 16px; align-items: start; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+        margin-bottom: 14px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+      }
+      .card h2 { margin: 0 0 10px; font-size: 15px; color: #253c74; }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .card-header h2 { margin: 0; }
+      .collapse-btn {
+        border: 1px solid #cdd7ef;
+        background: #f3f6fd;
+        color: #304a8f;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .card.collapsed .card-body { display: none; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+      .row.tight { margin-bottom: 0; }
+      input, textarea, select {
+        background: var(--surface-2);
+        border: 1px solid #d5ddea;
+        color: #17233d;
+        border-radius: 10px;
+        padding: 9px 10px;
+        outline: none;
+      }
+      input:focus, textarea:focus, select:focus { border-color: #91a4da; box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12); }
+      input, select { min-width: 180px; }
+      button {
+        background: var(--primary);
+        border: 0;
+        color: #fff;
+        border-radius: 10px;
+        padding: 9px 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover { background: var(--primary-2); }
+      button.secondary { background: #e9eef9; color: #2e4b92; border: 1px solid #cdd7ef; }
+      button.secondary:hover { background: #dde6f8; }
+      textarea { width: 100%; min-height: 68px; resize: vertical; }
+      .muted { color: var(--muted); font-size: 13px; }
+      .token { font-size: 12px; }
+      .preset-select { min-width: 220px; }
+      .right-col { position: sticky; top: 70px; }
+      .log-card { height: calc(100vh - 95px); display: flex; flex-direction: column; }
+      .log-actions { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; align-items: center; }
+      .log-actions button { padding: 7px 10px; font-size: 12px; }
+      #output {
+        flex: 1;
+        min-height: 360px;
+        font-size: 12px;
+        line-height: 1.35;
+        overflow: auto;
+        border: 1px solid #d8dfec;
+        background: #f9fbff;
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .log-empty { color: #6b7da8; }
+      .log-item { border: 1px solid #d9e2f1; border-radius: 8px; padding: 8px; background: #ffffff; margin-bottom: 8px; }
+      .log-item:last-child { margin-bottom: 0; }
+      .log-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+      .log-title { color: #2a3f74; font-weight: 600; font-size: 12px; word-break: break-word; }
+      .badge { border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+      .badge-2xx { background: #e9f9ef; color: #157c3f; border: 1px solid #b6e8c9; }
+      .badge-3xx { background: #fff6e8; color: #9a6205; border: 1px solid #f2dbb1; }
+      .badge-4xx { background: #fff0f0; color: #b42318; border: 1px solid #f5c2c2; }
+      .badge-5xx { background: #fdf1ff; color: #8b2ab1; border: 1px solid #edc6f8; }
+      .badge-etc { background: #edf1f9; color: #3d4f78; border: 1px solid #d1daec; }
+      .log-body { margin: 0; white-space: pre-wrap; word-break: break-word; color: #24375f; }
+      @media (max-width: 1080px) {
+        .layout { grid-template-columns: 1fr; }
+        .right-col { position: static; }
+        .log-card { height: 460px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">Auth API Admin Console (Sample)</div>
+        <div class="topbar-actions">
+          <div class="env-chip">Environment: Local</div>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <h1>Auth API Example App</h1>
+      <p class="subtitle">엔터프라이즈 SaaS 스타일의 테스트 콘솔입니다. 좌측에서 요청을 실행하고 우측에서 응답 로그를 모니터링하세요.</p>
+
+      <div class="layout">
+        <div class="left-col">
+          <div class="card">
+            <div class="card-header">
+              <h2>기본 설정</h2>
+              <button class="collapse-btn" data-collapse-btn>접기</button>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <input id="baseUrl" placeholder="Base URL" />
+                <button onclick="checkHealth()">헬스 체크</button>
+                <button class="secondary" onclick="loadProviders()">Provider 목록</button>
+              </div>
+              <div class="row tight">
+                <input id="presetName" placeholder="프리셋 이름" />
+                <select id="presetSelect" class="preset-select"></select>
+                <button class="secondary" onclick="savePreset()">프리셋 저장</button>
+                <button class="secondary" onclick="loadPreset()">불러오기</button>
+                <button class="secondary" onclick="deletePreset()">삭제</button>
+              </div>
+              <p class="muted">입력값을 프리셋으로 저장해 팀 테스트 시나리오를 재사용할 수 있습니다.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Email/Password</h2>
+              <button class="collapse-btn" data-collapse-btn>접기</button>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <input id="email" placeholder="email@example.com" />
+                <input id="password" placeholder="Password" type="password" />
+                <input id="deviceId" placeholder="device-id" />
+              </div>
+              <div class="row">
+                <button onclick="signup()">회원가입</button>
+                <button onclick="login()">로그인</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Phone OTP</h2>
+              <button class="collapse-btn" data-collapse-btn>접기</button>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <select id="otpChannel">
+                  <option value="sms">sms</option>
+                  <option value="whatsapp">whatsapp</option>
+                </select>
+                <input id="otpPhone" placeholder="+821012345678" />
+                <input id="otpCode" placeholder="123456" />
+              </div>
+              <div class="row">
+                <button onclick="otpSend()">OTP 발송</button>
+                <button onclick="otpVerify()">OTP 검증</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>OIDC Start</h2>
+              <button class="collapse-btn" data-collapse-btn>접기</button>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <input id="oidcProvider" placeholder="google" value="google" />
+                <input id="oidcRedirect" placeholder="https://app.example.com/auth/callback" value="https://app.example.com/auth/callback" />
+                <input id="oidcState" placeholder="state" />
+                <input id="oidcNonce" placeholder="nonce" />
+              </div>
+              <div class="row">
+                <button onclick="oidcStart()">OIDC 시작 URL 생성</button>
+              </div>
+              <p class="muted">생성된 URL은 응답에서 확인 후 새 창으로 열립니다.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Token 관리</h2>
+              <button class="collapse-btn" data-collapse-btn>접기</button>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <button onclick="refreshToken()">토큰 갱신</button>
+                <button class="secondary" onclick="logout()">로그아웃</button>
+              </div>
+              <div class="row">
+                <textarea id="accessToken" class="token" placeholder="access token"></textarea>
+              </div>
+              <div class="row">
+                <textarea id="refreshToken" class="token" placeholder="refresh token"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-col">
+          <div class="card log-card">
+            <h2>응답 로그</h2>
+            <div class="log-actions">
+              <span class="muted">최근 요청이 아래에 누적됩니다.</span>
+              <button class="secondary" onclick="clearLogs()">로그 지우기</button>
+            </div>
+            <div id="output"><div class="log-empty">ready</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const LS_LOG_KEY = "auth_example_logs";
+      const LS_COLLAPSE_KEY = "auth_example_collapsed_cards";
+      const LS_PRESET_KEY = "auth_example_presets";
+      const output = document.getElementById("output");
+      const accessTokenEl = document.getElementById("accessToken");
+      const refreshTokenEl = document.getElementById("refreshToken");
+      const baseUrlEl = document.getElementById("baseUrl");
+      const presetNameEl = document.getElementById("presetName");
+      const presetSelectEl = document.getElementById("presetSelect");
+      const cards = Array.from(document.querySelectorAll(".left-col .card"));
+      let logs = [];
+      let presetMap = {};
+
+      const defaultPresets = {
+        "local-basic": {
+          baseUrl: window.location.origin,
+          email: "demo@example.com",
+          password: "Passw0rd!123",
+          deviceId: "web-demo-device",
+          otpChannel: "sms",
+          otpPhone: "+821012345678",
+          otpCode: "123456",
+          oidcProvider: "google",
+          oidcRedirect: "https://app.example.com/auth/callback",
+          oidcState: "state-demo",
+          oidcNonce: "nonce-demo",
+        },
+      };
+
+      baseUrlEl.value = window.location.origin;
+      document.getElementById("email").value = "demo+" + Date.now() + "@example.com";
+      document.getElementById("password").value = "Passw0rd!123";
+      document.getElementById("deviceId").value = "web-demo-device";
+      document.getElementById("otpPhone").value = "+82101234" + Math.floor(Math.random() * 9000 + 1000);
+      document.getElementById("oidcState").value = "state-" + Date.now();
+      document.getElementById("oidcNonce").value = "nonce-" + Date.now();
+      initCollapsibleCards();
+      loadLogsFromStorage();
+      initPresets();
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function badgeClass(status) {
+        if (status >= 200 && status < 300) return "badge-2xx";
+        if (status >= 300 && status < 400) return "badge-3xx";
+        if (status >= 400 && status < 500) return "badge-4xx";
+        if (status >= 500 && status < 600) return "badge-5xx";
+        return "badge-etc";
+      }
+
+      function print(title, status, data) {
+        logs.unshift({
+          ts: new Date().toISOString(),
+          title,
+          status,
+          data,
+        });
+        logs = logs.slice(0, 300);
+        persistLogs();
+        renderLogs();
+      }
+
+      function clearLogs() {
+        logs = [];
+        persistLogs();
+        renderLogs();
+      }
+
+      function renderLogs() {
+        if (logs.length === 0) {
+          output.innerHTML = '<div class="log-empty">ready</div>';
+          return;
+        }
+        output.innerHTML = logs
+          .map((entry) => {
+            const time = new Date(entry.ts).toLocaleTimeString();
+            const payload = escapeHtml(JSON.stringify(entry.data, null, 2));
+            return `
+              <div class="log-item" data-status-group="${Math.floor((entry.status || 0) / 100) + "xx"}">
+                <div class="log-head">
+                  <div class="log-title">[${time}] ${escapeHtml(entry.title)}</div>
+                  <span class="badge ${badgeClass(entry.status)}">${entry.status}</span>
+                </div>
+                <pre class="log-body">${payload}</pre>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function persistLogs() {
+        localStorage.setItem(LS_LOG_KEY, JSON.stringify(logs));
+      }
+
+      function loadLogsFromStorage() {
+        try {
+          const raw = localStorage.getItem(LS_LOG_KEY);
+          logs = raw ? JSON.parse(raw) : [];
+        } catch {
+          logs = [];
+        }
+        renderLogs();
+      }
+
+      function initCollapsibleCards() {
+        let collapsed = {};
+        try {
+          collapsed = JSON.parse(localStorage.getItem(LS_COLLAPSE_KEY) || "{}");
+        } catch {
+          collapsed = {};
+        }
+        cards.forEach((card, idx) => {
+          const key = "card_" + idx;
+          const btn = card.querySelector("[data-collapse-btn]");
+          if (!btn) return;
+          if (collapsed[key]) {
+            card.classList.add("collapsed");
+            btn.textContent = "펼치기";
+          }
+          btn.addEventListener("click", () => {
+            card.classList.toggle("collapsed");
+            const isCollapsed = card.classList.contains("collapsed");
+            btn.textContent = isCollapsed ? "펼치기" : "접기";
+            collapsed[key] = isCollapsed;
+            localStorage.setItem(LS_COLLAPSE_KEY, JSON.stringify(collapsed));
+          });
+        });
+      }
+
+      function captureFormState() {
+        return {
+          baseUrl: baseUrlEl.value,
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+          deviceId: document.getElementById("deviceId").value,
+          otpChannel: document.getElementById("otpChannel").value,
+          otpPhone: document.getElementById("otpPhone").value,
+          otpCode: document.getElementById("otpCode").value,
+          oidcProvider: document.getElementById("oidcProvider").value,
+          oidcRedirect: document.getElementById("oidcRedirect").value,
+          oidcState: document.getElementById("oidcState").value,
+          oidcNonce: document.getElementById("oidcNonce").value,
+        };
+      }
+
+      function applyFormState(state) {
+        if (!state) return;
+        baseUrlEl.value = state.baseUrl || baseUrlEl.value;
+        document.getElementById("email").value = state.email || "";
+        document.getElementById("password").value = state.password || "";
+        document.getElementById("deviceId").value = state.deviceId || "";
+        document.getElementById("otpChannel").value = state.otpChannel || "sms";
+        document.getElementById("otpPhone").value = state.otpPhone || "";
+        document.getElementById("otpCode").value = state.otpCode || "";
+        document.getElementById("oidcProvider").value = state.oidcProvider || "google";
+        document.getElementById("oidcRedirect").value =
+          state.oidcRedirect || "https://app.example.com/auth/callback";
+        document.getElementById("oidcState").value = state.oidcState || "";
+        document.getElementById("oidcNonce").value = state.oidcNonce || "";
+      }
+
+      function savePreset() {
+        const name = (presetNameEl.value || "").trim();
+        if (!name) {
+          print("PRESET save failed", 400, { message: "프리셋 이름을 입력하세요." });
+          return;
+        }
+        presetMap[name] = captureFormState();
+        localStorage.setItem(LS_PRESET_KEY, JSON.stringify(presetMap));
+        refreshPresetOptions(name);
+        print("PRESET saved", 200, { name });
+      }
+
+      function loadPreset() {
+        const name = presetSelectEl.value;
+        if (!name || !presetMap[name]) {
+          print("PRESET load failed", 404, { message: "선택된 프리셋이 없습니다." });
+          return;
+        }
+        applyFormState(presetMap[name]);
+        presetNameEl.value = name;
+        print("PRESET loaded", 200, { name });
+      }
+
+      function deletePreset() {
+        const name = presetSelectEl.value;
+        if (!name || !presetMap[name]) {
+          print("PRESET delete failed", 404, { message: "선택된 프리셋이 없습니다." });
+          return;
+        }
+        delete presetMap[name];
+        localStorage.setItem(LS_PRESET_KEY, JSON.stringify(presetMap));
+        refreshPresetOptions();
+        print("PRESET deleted", 200, { name });
+      }
+
+      function refreshPresetOptions(selectedName) {
+        const names = Object.keys(presetMap).sort((a, b) => a.localeCompare(b));
+        presetSelectEl.innerHTML = names
+          .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+          .join("");
+        if (selectedName && names.includes(selectedName)) {
+          presetSelectEl.value = selectedName;
+        } else if (names.length > 0) {
+          presetSelectEl.value = names[0];
+        }
+      }
+
+      function initPresets() {
+        let stored = {};
+        try {
+          stored = JSON.parse(localStorage.getItem(LS_PRESET_KEY) || "{}");
+        } catch {
+          stored = {};
+        }
+        presetMap = { ...defaultPresets, ...stored };
+        localStorage.setItem(LS_PRESET_KEY, JSON.stringify(presetMap));
+        refreshPresetOptions("local-basic");
+      }
+
+      function getBase() {
+        return (baseUrlEl.value || "").replace(/\/$/, "");
+      }
+
+      async function api(path, method, body, auth) {
+        const headers = { "Content-Type": "application/json" };
+        if (auth) headers.Authorization = "Bearer " + auth;
+        const res = await fetch(getBase() + path, {
+          method: method || "GET",
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        let data;
+        try { data = await res.json(); } catch { data = { raw: "non-json response" }; }
+        return { status: res.status, data };
+      }
+
+      function updateTokens(data) {
+        const t = data && data.tokens;
+        if (!t) return;
+        if (t.accessToken) accessTokenEl.value = t.accessToken;
+        if (t.refreshToken) refreshTokenEl.value = t.refreshToken;
+      }
+
+      async function checkHealth() {
+        const r = await api("/health");
+        print("GET /health", r.status, r.data);
+      }
+
+      async function loadProviders() {
+        const r = await api("/v1/auth/providers");
+        print("GET /v1/auth/providers", r.status, r.data);
+      }
+
+      async function signup() {
+        const r = await api("/v1/auth/password/signup", "POST", {
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+        });
+        print("POST /password/signup", r.status, r.data);
+      }
+
+      async function login() {
+        const r = await api("/v1/auth/password/login", "POST", {
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+          deviceId: document.getElementById("deviceId").value,
+        });
+        updateTokens(r.data);
+        print("POST /password/login", r.status, r.data);
+      }
+
+      async function otpSend() {
+        const r = await api("/v1/auth/otp/send", "POST", {
+          channel: document.getElementById("otpChannel").value,
+          phone: document.getElementById("otpPhone").value,
+          purpose: "login",
+        });
+        if (r.data && r.data.debugCode) {
+          document.getElementById("otpCode").value = r.data.debugCode;
+        }
+        print("POST /otp/send", r.status, r.data);
+      }
+
+      async function otpVerify() {
+        const r = await api("/v1/auth/otp/verify", "POST", {
+          phone: document.getElementById("otpPhone").value,
+          code: document.getElementById("otpCode").value,
+          deviceId: document.getElementById("deviceId").value,
+        });
+        updateTokens(r.data);
+        print("POST /otp/verify", r.status, r.data);
+      }
+
+      async function oidcStart() {
+        const r = await api("/v1/auth/oidc/" + encodeURIComponent(document.getElementById("oidcProvider").value) + "/start", "POST", {
+          clientType: "web",
+          redirectUri: document.getElementById("oidcRedirect").value,
+          codeChallenge: "example_code_challenge",
+          codeChallengeMethod: "S256",
+          state: document.getElementById("oidcState").value,
+          nonce: document.getElementById("oidcNonce").value,
+        });
+        if (r.data && r.data.authorizationUrl) window.open(r.data.authorizationUrl, "_blank");
+        print("POST /oidc/:provider/start", r.status, r.data);
+      }
+
+      async function refreshToken() {
+        const r = await api("/v1/auth/token/refresh", "POST", {
+          refreshToken: refreshTokenEl.value,
+          deviceId: document.getElementById("deviceId").value,
+        });
+        updateTokens(r.data);
+        print("POST /token/refresh", r.status, r.data);
+      }
+
+      async function logout() {
+        const r = await api("/v1/auth/logout", "POST", {
+          refreshToken: refreshTokenEl.value,
+        });
+        print("POST /logout", r.status, r.data);
+      }
+    </script>
+  </body>
+  </html>

@@ -13,6 +13,7 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 app.set("trust proxy", 1);
+app.use("/example", express.static(path.join(__dirname, "example-web")));
 
 app.use((req, res, next) => {
   res.set("Access-Control-Allow-Origin", req.headers.origin || "*");
@@ -28,11 +29,16 @@ app.get("/health", (req, res) => {
   res.json({ ok: true, message: "Auth API server" });
 });
 
+app.get("/example", (req, res) => {
+  res.sendFile(path.join(__dirname, "example-web", "index.html"));
+});
+
 app.get("/", (req, res) => {
   res.json({
     message: "Auth API",
     endpoints: {
       "GET /health": "헬스 체크",
+      "GET /example": "예제 웹앱",
       "GET /v1/auth/providers": "로그인 Provider 목록",
       "POST /v1/auth/oidc/:provider/start": "OIDC 로그인 시작",
       "POST /v1/auth/oidc/:provider/exchange": "OIDC 코드 교환",

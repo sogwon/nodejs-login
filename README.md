@@ -73,6 +73,20 @@ npm start
 
 - 기본 포트: `3000`
 - 헬스 체크: `GET /health`
+- 예제 웹앱: `GET /example`
+
+### 5) 예제 웹앱 사용
+
+이 프로젝트에는 API 호출 흐름을 바로 테스트할 수 있는 샘플 웹앱이 포함되어 있습니다.
+
+1. 서버 실행: `npm start`
+2. 브라우저 접속: `http://localhost:3000/example`
+3. 페이지에서 다음 기능을 순서대로 테스트
+   - Provider 목록 조회
+   - Email 회원가입/로그인
+   - OTP 발송/검증
+   - 토큰 갱신/로그아웃
+   - OIDC start URL 생성
 
 ## 인증 아키텍처 요약
 
