@@ -165,13 +165,54 @@ Base URL: `http://localhost:3000`
 ## 프로젝트 구조
 
 ```text
-app.js
-docs/API_GUIDE.md
-routes/auth/
-lib/auth/
-sql/schema.sql
-sql/seed-providers.sql
+nodejs-login/
+├── app.js                 # Express 진입점, /v1/auth·/health·/example 서빙
+├── package.json
+├── .env.example            # 환경 변수 예시 (실제 값은 .env)
+├── README.md
+├── docs/
+│   └── API_GUIDE.md        # API 상세 가이드 (요청/응답, curl 예시)
+├── example-web/
+│   └── index.html          # Auth API 테스트용 예제 웹앱 (SaaS 스타일)
+├── lib/                    # 공통/인증 로직
+│   ├── db.js               # MySQL 풀, query/queryOne, uuid
+│   └── auth/
+│       ├── response.js     # success/error 공통 응답 포맷
+│       ├── crypto.js       # PKCE, state/nonce, 해시
+│       ├── password.js     # bcrypt 해시/검증
+│       ├── tokens.js       # JWT Access, Opaque Refresh, 세션/rotation
+│       ├── states.js       # PKCE state/nonce 임시 저장
+│       ├── audit.js        # 감사 로그 기록
+│       ├── middleware.js   # Bearer JWT 인증 미들웨어
+│       ├── user-identity.js # User/Identity 조회·생성·연결
+│       └── providers/      # IdP 어댑터
+│           ├── adapter.js        # Provider 인터페이스
+│           ├── oidc-generic.js   # Generic OIDC (discovery 기반)
+│           └── index.js          # 어댑터 레지스트리, listProviders
+├── routes/
+│   └── auth/
+│       ├── index.js        # /v1/auth 라우터, rate limit
+│       ├── providers.js    # GET /providers
+│       ├── oidc.js         # POST /oidc/:provider/start, /exchange
+│       ├── password.js     # POST /password/signup, /login
+│       ├── otp.js          # POST /otp/send, /verify
+│       ├── token.js        # POST /token/refresh, /logout
+│       └── link.js         # POST /link/oidc/:provider/start|exchange, DELETE /identities/:id
+└── sql/
+    ├── schema.sql          # users, identities, sessions, refresh_tokens, otp_requests, auth_providers 등
+    └── seed-providers.sql  # IdP 예시 (Google 등)
 ```
+
+### 역할 요약
+
+| 구분 | 역할 |
+|------|------|
+| **app.js** | Express 앱, CORS, `/v1/auth` 마운트, `/example` 정적·진입, `/health` |
+| **lib/db.js** | DB 연결 풀, `query`/`queryOne`/`uuid` |
+| **lib/auth/** | 인증 공통: 응답 포맷, PKCE/해시, 비밀번호, JWT·Refresh·세션, state, 감사, User/Identity, IdP 어댑터 |
+| **routes/auth/** | 엔드포인트별 핸들러: providers, OIDC, password, OTP, token, link |
+| **sql/** | DB 스키마 및 IdP 시드 |
+| **example-web/** | 브라우저에서 API 호출 테스트용 단일 페이지 앱 |
 
 ## 개발 메모
 
