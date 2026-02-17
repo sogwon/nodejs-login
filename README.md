@@ -41,6 +41,52 @@ npm run server
 
 포트는 환경 변수 `PORT`로 변경 가능 (기본 3000).
 
+## Auth API (로그인 서버)
+
+`npm start`로 실행되는 앱에 **로그인 API**가 포함되어 있습니다.
+
+### DB 스키마 적용
+
+Auth API를 사용하려면 MySQL에 스키마를 적용하세요.
+
+```bash
+# MySQL 클라이언트로 적용 (DB_NAME은 사용 중인 DB로 변경)
+mysql -h DB_HOST -u DB_USER -p DB_NAME < sql/schema.sql
+# IdP 예시 등록 (선택)
+mysql -h DB_HOST -u DB_USER -p DB_NAME < sql/seed-providers.sql
+```
+
+`.env`에 `DB_NAME=auth` 또는 기존 DB 이름을 두고, 동일 DB에 테이블을 생성하면 됩니다.
+
+### Auth 환경 변수
+
+| 변수 | 설명 |
+|------|------|
+| `JWT_SECRET` | JWT 서명용 시크릿 (운영 시 필수, 32자 이상 권장) |
+| `JWT_ISSUER` | JWT iss 클레임 (기본 `auth.example.com`) |
+| `AUTH_BASE_URL` | Provider 목록의 `authUrl` 기준 URL (리다이렉트용) |
+| `ACCESS_TOKEN_EXPIRES_IN` | Access Token 만료(초, 기본 900) |
+| `REFRESH_TOKEN_EXPIRES_IN` | Refresh Token 만료(초, 기본 2592000) |
+
+### Auth API 엔드포인트 요약
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/v1/auth/providers` | 로그인 가능한 Provider 목록 |
+| POST | `/v1/auth/oidc/:provider/start` | OIDC 로그인 시작 (PKCE, state, nonce) |
+| POST | `/v1/auth/oidc/:provider/exchange` | 인가 코드 교환 → 토큰 발급 |
+| POST | `/v1/auth/password/signup` | 이메일/비밀번호 가입 |
+| POST | `/v1/auth/password/login` | 이메일/비밀번호 로그인 |
+| POST | `/v1/auth/otp/send` | OTP 발송 (SMS/WhatsApp 등) |
+| POST | `/v1/auth/otp/verify` | OTP 검증 → 토큰 발급 |
+| POST | `/v1/auth/token/refresh` | Refresh Token으로 Access/Refresh 재발급 (Rotation) |
+| POST | `/v1/auth/logout` | Refresh Token 폐기 |
+| POST | `/v1/auth/link/oidc/:provider/start` | IdP 연결 시작 (Bearer 필요) |
+| POST | `/v1/auth/link/oidc/:provider/exchange` | IdP 연결 완료 (Bearer 필요) |
+| DELETE | `/v1/auth/identities/:identityId` | Identity 해제 (최소 1개 유지) |
+
+OIDC IdP는 `auth_providers` 테이블에 설정만 추가하면 Generic OIDC로 동작합니다 (discovery_url/issuer, client_id, client_secret, scopes 등).
+
 ## MySQL 테이블 목록 출력 (CLI)
 
 ### 방법 1: CloudBase Node SDK (데이터 모델)
